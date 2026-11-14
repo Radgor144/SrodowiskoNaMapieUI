@@ -1,5 +1,6 @@
+
 import { useState } from 'react'
-import { Info, Layers, MapPin } from 'lucide-react'
+import { Info, Layers, MapPin, X } from 'lucide-react'
 import { LAYER_CATEGORIES, LAYERS } from '../layer.config'
 import type { LayerId } from '../layer.config'
 import type { SevesoSiteType } from '../../seveso/model/sevesoSite'
@@ -7,8 +8,10 @@ import { SevesoTypeFilters } from '../../seveso/components/SevesoTypeFilters'
 import { LayerItem } from './LayerItem'
 
 type LayerSidebarProps = {
+    isOpen: boolean
     activeLayerIds: readonly LayerId[]
     enabledSevesoTypes: readonly SevesoSiteType[]
+    onClose: () => void
     onLayerToggle: (layerId: LayerId) => void
     onSevesoTypeToggle: (siteType: SevesoSiteType) => void
 }
@@ -16,8 +19,10 @@ type LayerSidebarProps = {
 type SidebarSection = 'map' | 'about'
 
 export function LayerSidebar({
+                                 isOpen,
                                  activeLayerIds,
                                  enabledSevesoTypes,
+                                 onClose,
                                  onLayerToggle,
                                  onSevesoTypeToggle,
                              }: LayerSidebarProps) {
@@ -25,23 +30,39 @@ export function LayerSidebar({
         useState<SidebarSection>('map')
 
     return (
-        <aside className="z-10 flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white">
-            <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white">
-                    <MapPin size={21} />
+        <aside
+            aria-label="Panel warstw i nawigacji"
+            className={`fixed inset-y-0 left-0 z-40 flex h-dvh w-72 shrink-0 flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-200 ease-out lg:static lg:z-10 lg:h-full lg:translate-x-0 lg:shadow-none ${
+                isOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+        >
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 px-5">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                        <MapPin size={21} />
+                    </div>
+
+                    <div>
+                        <h1 className="text-base font-bold tracking-tight">
+                            ŚrodowiskoNaMapie
+                        </h1>
+                        <p className="text-xs text-slate-500">
+                            Dane o Twoim otoczeniu
+                        </p>
+                    </div>
                 </div>
 
-                <div>
-                    <h1 className="text-base font-bold tracking-tight">
-                        ŚrodowiskoNaMapie
-                    </h1>
-                    <p className="text-xs text-slate-500">
-                        Dane o Twoim otoczeniu
-                    </p>
-                </div>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Zamknij menu warstw"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden"
+                >
+                    <X size={20} />
+                </button>
             </div>
 
-            <nav className="flex gap-1 border-b border-slate-200 p-3">
+            <nav className="flex shrink-0 gap-1 border-b border-slate-200 p-3">
                 <button
                     type="button"
                     onClick={() => setSelectedSection('map')}
@@ -123,7 +144,7 @@ export function LayerSidebar({
                 </div>
             )}
 
-            <div className="border-t border-slate-200 p-4">
+            <div className="shrink-0 border-t border-slate-200 p-4">
                 <p className="text-xs text-slate-400">
                     Źródła danych: GIOŚ
                 </p>

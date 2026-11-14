@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import {
     DEFAULT_ACTIVE_LAYER_IDS,
@@ -25,6 +26,7 @@ export function MainLayout() {
 
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedSite, setSelectedSite] = useState<SevesoSite | null>(null)
+    const [isLayerSidebarOpen, setIsLayerSidebarOpen] = useState(false)
 
     const handleLayerToggle = (layerId: LayerId) => {
         const isCurrentlyActive = activeLayerIds.includes(layerId)
@@ -56,11 +58,26 @@ export function MainLayout() {
         }
     }
 
+    const handleSiteClose = () => {
+        setSelectedSite(null)
+    }
+
     return (
-        <div className="flex h-screen w-screen overflow-hidden bg-slate-100 text-slate-900">
+        <div className="flex h-dvh w-screen overflow-hidden bg-slate-100 text-slate-900">
+            {isLayerSidebarOpen && (
+                <button
+                    type="button"
+                    aria-label="Zamknij menu warstw"
+                    onClick={() => setIsLayerSidebarOpen(false)}
+                    className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden"
+                />
+            )}
+
             <LayerSidebar
+                isOpen={isLayerSidebarOpen}
                 activeLayerIds={activeLayerIds}
                 enabledSevesoTypes={enabledSevesoTypes}
+                onClose={() => setIsLayerSidebarOpen(false)}
                 onLayerToggle={handleLayerToggle}
                 onSevesoTypeToggle={handleSevesoTypeToggle}
             />
@@ -69,17 +86,21 @@ export function MainLayout() {
                 <AppHeader
                     searchQuery={searchQuery}
                     onSearchChange={setSearchQuery}
+                    onMenuClick={() => setIsLayerSidebarOpen(true)}
                 />
 
-                <div className="flex min-h-0 min-w-0 flex-1">
+                <div className="relative flex min-h-0 min-w-0 flex-1">
                     <MapView
                         activeLayerIds={activeLayerIds}
                         enabledSevesoTypes={enabledSevesoTypes}
-                        selectedSiteId={selectedSite?.sourceId ?? null}
+                        selectedSite={selectedSite}
                         onSiteSelect={setSelectedSite}
                     />
 
-                    <ObjectDetailsPanel site={selectedSite} />
+                    <ObjectDetailsPanel
+                        site={selectedSite}
+                        onClose={handleSiteClose}
+                    />
                 </div>
             </main>
         </div>

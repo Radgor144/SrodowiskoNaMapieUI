@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react'
 import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
 import { MapPin } from 'lucide-react'
@@ -13,6 +14,7 @@ const SEVESO_DATA_URL = `${import.meta.env.BASE_URL}data/seveso.geojson`
 
 const MAP_CENTER: [number, number] = [19.1451, 52.0]
 const INITIAL_ZOOM = 5
+const SITE_ZOOM = 10
 
 const SEVESO_SOURCE_ID = 'seveso-sites'
 const ZDR_LAYER_ID = 'seveso-zdr'
@@ -21,14 +23,14 @@ const ZZR_LAYER_ID = 'seveso-zzr'
 type MapViewProps = {
     activeLayerIds: readonly LayerId[]
     enabledSevesoTypes: readonly SevesoSiteType[]
-    selectedSiteId: number | null
+    selectedSite: SevesoSite | null
     onSiteSelect: (site: SevesoSite | null) => void
 }
 
 export function MapView({
                             activeLayerIds,
                             enabledSevesoTypes,
-                            selectedSiteId,
+                            selectedSite,
                             onSiteSelect,
                         }: MapViewProps) {
     const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -36,6 +38,8 @@ export function MapView({
     const previousSelectedSiteIdRef = useRef<number | null>(null)
 
     const [isMapLoaded, setIsMapLoaded] = useState(false)
+
+    const selectedSiteId = selectedSite?.sourceId ?? null
 
     useEffect(() => {
         const container = mapContainerRef.current
@@ -130,20 +134,20 @@ export function MapView({
                 },
             })
 
-            const handleSiteClick = (feature: unknown) => {
-                const site = parseSevesoSiteFeature(feature)
+            map.on('click', ZDR_LAYER_ID, (event) => {
+                const site = parseSevesoSiteFeature(event.features?.[0])
 
                 if (site) {
                     onSiteSelect(site)
                 }
-            }
-
-            map.on('click', ZDR_LAYER_ID, (event) => {
-                handleSiteClick(event.features?.[0])
             })
 
             map.on('click', ZZR_LAYER_ID, (event) => {
-                handleSiteClick(event.features?.[0])
+                const site = parseSevesoSiteFeature(event.features?.[0])
+
+                if (site) {
+                    onSiteSelect(site)
+                }
             })
 
             map.on('click', (event) => {
@@ -156,21 +160,15 @@ export function MapView({
                 }
             })
 
-            map.on('mouseenter', ZDR_LAYER_ID, () => {
-                map.getCanvas().style.cursor = 'pointer'
-            })
+            for (const layerId of [ZDR_LAYER_ID, ZZR_LAYER_ID]) {
+                map.on('mouseenter', layerId, () => {
+                    map.getCanvas().style.cursor = 'pointer'
+                })
 
-            map.on('mouseenter', ZZR_LAYER_ID, () => {
-                map.getCanvas().style.cursor = 'pointer'
-            })
-
-            map.on('mouseleave', ZDR_LAYER_ID, () => {
-                map.getCanvas().style.cursor = ''
-            })
-
-            map.on('mouseleave', ZZR_LAYER_ID, () => {
-                map.getCanvas().style.cursor = ''
-            })
+                map.on('mouseleave', layerId, () => {
+                    map.getCanvas().style.cursor = ''
+                })
+            }
 
             setIsMapLoaded(true)
         })
@@ -215,6 +213,29 @@ export function MapView({
 
         previousSelectedSiteIdRef.current = selectedSiteId
     }, [selectedSiteId, isMapLoaded])
+
+    useEffect(() => {
+        const map = mapRef.current
+
+        if (!map || !isMapLoaded || !selectedSite) {
+            return
+        }
+
+        const isMobileViewport = window.matchMedia(
+            '(max-width: 1023px)',
+        ).matches
+
+        const offset: [number, number] = isMobileViewport
+            ? [0, -66]
+            : [0, 0]
+
+        map.flyTo({
+            center: [selectedSite.longitude, selectedSite.latitude],
+            zoom: Math.max(map.getZoom(), SITE_ZOOM),
+            offset,
+            duration: 700,
+        })
+    }, [selectedSite, isMapLoaded])
 
     useEffect(() => {
         const map = mapRef.current

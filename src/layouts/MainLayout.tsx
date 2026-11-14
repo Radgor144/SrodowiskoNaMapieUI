@@ -6,7 +6,7 @@ import {
 } from '../features/layers/layer.config'
 import { LayerSidebar } from '../features/layers/components/LayerSidebar'
 import { MapView } from '../features/map/components/MapView'
-import { ObjectDetailsPanel } from '../features/objects/components/ObjectDetailsPanel'
+import { SevesoSiteDetailsPanel } from '../features/seveso/components/SevesoSiteDetailsPanel.tsx'
 import type { PlaceSearchResult } from '../features/places/model/place'
 import type {
     SevesoSite,
@@ -128,7 +128,7 @@ export function MainLayout() {
                         onSiteSelect={handleMapSiteSelect}
                     />
 
-                    <ObjectDetailsPanel
+                    <SevesoSiteDetailsPanel
                         site={selectedSite}
                         onClose={() => setSelectedSite(null)}
                     />

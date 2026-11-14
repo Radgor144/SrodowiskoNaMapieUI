@@ -8,7 +8,7 @@ import {
     MapPin,
     X,
 } from 'lucide-react'
-import type { SevesoSite } from '../../seveso/model/sevesoSite'
+import type { SevesoSite } from '../model/sevesoSite.ts'
 
 type ObjectDetailsPanelProps = {
     site: SevesoSite | null
@@ -128,7 +128,7 @@ function EmptyDetails() {
     )
 }
 
-export function ObjectDetailsPanel({
+export function SevesoSiteDetailsPanel({
                                        site,
                                        onClose,
                                    }: ObjectDetailsPanelProps) {

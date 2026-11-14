@@ -1,6 +1,6 @@
 
 import { useQuery } from '@tanstack/react-query'
-import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue'
+import { useDebouncedValue } from './useDebouncedValue.ts'
 import { searchPlaces } from '../api/placeSearchApi'
 
 export const PLACE_SEARCH_QUERY_KEY = ['places', 'search'] as const

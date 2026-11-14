@@ -1,7 +1,13 @@
+
 import { MainLayout } from '../layouts/MainLayout'
+import { QueryProvider } from './providers/QueryProvider'
 
 function App() {
-  return <MainLayout />
+  return (
+      <QueryProvider>
+        <MainLayout />
+      </QueryProvider>
+  )
 }
 
 export default App

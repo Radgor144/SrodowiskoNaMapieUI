@@ -2,18 +2,24 @@ import { useState } from 'react'
 import { Info, Layers, MapPin } from 'lucide-react'
 import { LAYER_CATEGORIES, LAYERS } from '../layer.config'
 import type { LayerId } from '../layer.config'
+import type { SevesoSiteType } from '../../seveso/model/sevesoSite'
+import { SevesoTypeFilters } from '../../seveso/components/SevesoTypeFilters'
 import { LayerItem } from './LayerItem'
 
 type LayerSidebarProps = {
     activeLayerIds: readonly LayerId[]
+    enabledSevesoTypes: readonly SevesoSiteType[]
     onLayerToggle: (layerId: LayerId) => void
+    onSevesoTypeToggle: (siteType: SevesoSiteType) => void
 }
 
 type SidebarSection = 'map' | 'about'
 
 export function LayerSidebar({
                                  activeLayerIds,
+                                 enabledSevesoTypes,
                                  onLayerToggle,
+                                 onSevesoTypeToggle,
                              }: LayerSidebarProps) {
     const [selectedSection, setSelectedSection] =
         useState<SidebarSection>('map')
@@ -81,16 +87,25 @@ export function LayerSidebar({
                                 <div className="space-y-1">
                                     {categoryLayers.map((layer) => {
                                         const Icon = layer.icon
+                                        const isActive = activeLayerIds.includes(layer.id)
 
                                         return (
-                                            <LayerItem
-                                                key={layer.id}
-                                                icon={<Icon size={19} />}
-                                                label={layer.label}
-                                                description={layer.description}
-                                                active={activeLayerIds.includes(layer.id)}
-                                                onToggle={() => onLayerToggle(layer.id)}
-                                            />
+                                            <div key={layer.id}>
+                                                <LayerItem
+                                                    icon={<Icon size={19} />}
+                                                    label={layer.label}
+                                                    description={layer.description}
+                                                    active={isActive}
+                                                    onToggle={() => onLayerToggle(layer.id)}
+                                                />
+
+                                                {layer.id === 'seveso' && isActive && (
+                                                    <SevesoTypeFilters
+                                                        enabledSiteTypes={enabledSevesoTypes}
+                                                        onSiteTypeToggle={onSevesoTypeToggle}
+                                                    />
+                                                )}
+                                            </div>
                                         )
                                     })}
                                 </div>

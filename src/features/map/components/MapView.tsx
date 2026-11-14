@@ -1,43 +1,61 @@
 
 import { useEffect, useRef, useState } from 'react'
-import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
+import {
+    Map as MapLibreMap,
+    NavigationControl,
+    type GeoJSONSource,
+} from 'maplibre-gl'
 import { MapPin } from 'lucide-react'
 import type { LayerId } from '../../layers/layer.config'
 import type {
     SevesoSite,
     SevesoSiteType,
 } from '../../seveso/model/sevesoSite'
-import { parseSevesoSiteFeature } from '../../seveso/model/sevesoSite'
+import type { PlaceSearchResult } from '../../places/model/place'
+import { toSevesoFeatureCollection } from '../model/sevesoFeatureCollection'
 
 const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
-const SEVESO_DATA_URL = `${import.meta.env.BASE_URL}data/seveso.geojson`
 
 const MAP_CENTER: [number, number] = [19.1451, 52.0]
 const INITIAL_ZOOM = 5
-const SITE_ZOOM = 10
+const MAX_ZOOM = 18
+const FOCUS_ZOOM = 10
+
+const MOBILE_VIEWPORT_QUERY = '(max-width: 767px)'
 
 const SEVESO_SOURCE_ID = 'seveso-sites'
 const ZDR_LAYER_ID = 'seveso-zdr'
 const ZZR_LAYER_ID = 'seveso-zzr'
 
 type MapViewProps = {
+    sites: readonly SevesoSite[]
     activeLayerIds: readonly LayerId[]
     enabledSevesoTypes: readonly SevesoSiteType[]
     selectedSite: SevesoSite | null
+    selectedPlace: PlaceSearchResult | null
+    isSitesLoading: boolean
+    hasSitesError: boolean
     onSiteSelect: (site: SevesoSite | null) => void
 }
 
 export function MapView({
+                            sites,
                             activeLayerIds,
                             enabledSevesoTypes,
                             selectedSite,
+                            selectedPlace,
+                            isSitesLoading,
+                            hasSitesError,
                             onSiteSelect,
                         }: MapViewProps) {
     const mapContainerRef = useRef<HTMLDivElement>(null)
     const mapRef = useRef<MapLibreMap | null>(null)
+    const sitesRef = useRef(sites)
     const previousSelectedSiteIdRef = useRef<number | null>(null)
 
     const [isMapLoaded, setIsMapLoaded] = useState(false)
+
+    sitesRef.current = sites
 
     const selectedSiteId = selectedSite?.sourceId ?? null
 
@@ -53,8 +71,7 @@ export function MapView({
             style: MAP_STYLE_URL,
             center: MAP_CENTER,
             zoom: INITIAL_ZOOM,
-            minZoom: 4,
-            maxZoom: 18,
+            maxZoom: MAX_ZOOM,
         })
 
         mapRef.current = map
@@ -74,15 +91,14 @@ export function MapView({
         map.once('load', () => {
             map.addSource(SEVESO_SOURCE_ID, {
                 type: 'geojson',
-                data: SEVESO_DATA_URL,
-                promoteId: 'ifcid',
+                data: toSevesoFeatureCollection([]),
             })
 
             map.addLayer({
                 id: ZDR_LAYER_ID,
                 type: 'circle',
                 source: SEVESO_SOURCE_ID,
-                filter: ['==', ['get', 'sevesotype'], 'ZDR'],
+                filter: ['==', ['get', 'siteType'], 'ZDR'],
                 paint: {
                     'circle-radius': [
                         'case',
@@ -110,7 +126,7 @@ export function MapView({
                 id: ZZR_LAYER_ID,
                 type: 'circle',
                 source: SEVESO_SOURCE_ID,
-                filter: ['==', ['get', 'sevesotype'], 'ZZR'],
+                filter: ['==', ['get', 'siteType'], 'ZZR'],
                 paint: {
                     'circle-radius': [
                         'case',
@@ -134,20 +150,31 @@ export function MapView({
                 },
             })
 
-            map.on('click', ZDR_LAYER_ID, (event) => {
-                const site = parseSevesoSiteFeature(event.features?.[0])
+            const handleSiteClick = (
+                featureId: string | number | undefined,
+            ) => {
+                if (
+                    typeof featureId !== 'number' ||
+                    !Number.isInteger(featureId)
+                ) {
+                    return
+                }
+
+                const site = sitesRef.current.find(
+                    (currentSite) => currentSite.sourceId === featureId,
+                )
 
                 if (site) {
                     onSiteSelect(site)
                 }
+            }
+
+            map.on('click', ZDR_LAYER_ID, (event) => {
+                handleSiteClick(event.features?.[0]?.id)
             })
 
             map.on('click', ZZR_LAYER_ID, (event) => {
-                const site = parseSevesoSiteFeature(event.features?.[0])
-
-                if (site) {
-                    onSiteSelect(site)
-                }
+                handleSiteClick(event.features?.[0]?.id)
             })
 
             map.on('click', (event) => {
@@ -187,6 +214,26 @@ export function MapView({
             return
         }
 
+        const source = map.getSource(SEVESO_SOURCE_ID)
+
+        if (!source || source.type !== 'geojson') {
+            return
+        }
+
+        void (source as GeoJSONSource)
+            .setData(toSevesoFeatureCollection(sites))
+            .catch((error: unknown) => {
+                console.error('[SEVESO] Failed to update map data:', error)
+            })
+    }, [sites, isMapLoaded])
+
+    useEffect(() => {
+        const map = mapRef.current
+
+        if (!map || !isMapLoaded) {
+            return
+        }
+
         const previousSelectedSiteId = previousSelectedSiteIdRef.current
 
         if (previousSelectedSiteId !== null) {
@@ -212,30 +259,62 @@ export function MapView({
         }
 
         previousSelectedSiteIdRef.current = selectedSiteId
-    }, [selectedSiteId, isMapLoaded])
+    }, [selectedSiteId, isMapLoaded, sites])
 
     useEffect(() => {
         const map = mapRef.current
 
-        if (!map || !isMapLoaded || !selectedSite) {
+        if (!map || !isMapLoaded) {
             return
         }
 
-        const isMobileViewport = window.matchMedia(
-            '(max-width: 1023px)',
-        ).matches
+        if (selectedSite) {
+            map.stop()
 
-        const offset: [number, number] = isMobileViewport
-            ? [0, -66]
-            : [0, 0]
+            map.flyTo({
+                center: [selectedSite.longitude, selectedSite.latitude],
+                zoom: FOCUS_ZOOM,
+                duration: 850,
+                essential: true,
+                offset: window.matchMedia(MOBILE_VIEWPORT_QUERY).matches
+                    ? [0, -66]
+                    : [0, 0],
+            })
+
+            return
+        }
+
+        if (!selectedPlace) {
+            return
+        }
+
+        map.stop()
+
+        if (selectedPlace.extent) {
+            const [west, south, east, north] = selectedPlace.extent
+
+            map.fitBounds(
+                [
+                    [west, south],
+                    [east, north],
+                ],
+                {
+                    padding: 80,
+                    maxZoom: FOCUS_ZOOM,
+                    duration: 850,
+                },
+            )
+
+            return
+        }
 
         map.flyTo({
-            center: [selectedSite.longitude, selectedSite.latitude],
-            zoom: Math.max(map.getZoom(), SITE_ZOOM),
-            offset,
-            duration: 700,
+            center: [selectedPlace.longitude, selectedPlace.latitude],
+            zoom: FOCUS_ZOOM,
+            duration: 850,
+            essential: true,
         })
-    }, [selectedSite, isMapLoaded])
+    }, [selectedSite, selectedPlace, isMapLoaded])
 
     useEffect(() => {
         const map = mapRef.current
@@ -303,6 +382,21 @@ export function MapView({
           </span>
                 )}
             </div>
+
+            {isSitesLoading && isMapLoaded && (
+                <div className="absolute right-5 top-5 z-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-sm">
+                    Ładowanie zakładów...
+                </div>
+            )}
+
+            {hasSitesError && (
+                <div
+                    role="alert"
+                    className="absolute right-5 top-5 z-10 max-w-xs rounded-lg border border-red-200 bg-white px-4 py-3 text-sm text-red-700 shadow-sm"
+                >
+                    Nie udało się pobrać danych zakładów SEVESO.
+                </div>
+            )}
 
             {!isMapLoaded && (
                 <div

@@ -1,15 +1,26 @@
 
-import { Bell, Menu, Search } from 'lucide-react'
+import { Bell, Menu } from 'lucide-react'
+import type { SevesoSite } from '../../features/seveso/model/sevesoSite'
+import type { PlaceSearchResult } from '../../features/places/model/place'
+import { GlobalSearch } from '../../features/search/components/GlobalSearch'
 
 type AppHeaderProps = {
     searchQuery: string
+    sites: readonly SevesoSite[]
+    isSitesLoading: boolean
     onSearchChange: (value: string) => void
+    onSiteSelect: (site: SevesoSite) => void
+    onPlaceSelect: (place: PlaceSearchResult) => void
     onMenuClick: () => void
 }
 
 export function AppHeader({
                               searchQuery,
+                              sites,
+                              isSitesLoading,
                               onSearchChange,
+                              onSiteSelect,
+                              onPlaceSelect,
                               onMenuClick,
                           }: AppHeaderProps) {
     return (
@@ -35,23 +46,20 @@ export function AppHeader({
                 </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-3 sm:gap-5">
-                <div className="hidden w-56 items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 md:flex lg:w-72">
-                    <Search size={17} className="shrink-0 text-slate-400" />
-
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(event) => onSearchChange(event.target.value)}
-                        placeholder="Szukaj lokalizacji..."
-                        className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-                    />
-                </div>
+            <div className="flex shrink-0 items-center gap-2 sm:gap-5">
+                <GlobalSearch
+                    query={searchQuery}
+                    sites={sites}
+                    isSitesLoading={isSitesLoading}
+                    onQueryChange={onSearchChange}
+                    onSiteSelect={onSiteSelect}
+                    onPlaceSelect={onPlaceSelect}
+                />
 
                 <button
                     type="button"
                     aria-label="Powiadomienia"
-                    className="text-slate-500 transition hover:text-slate-900"
+                    className="hidden text-slate-500 transition hover:text-slate-900 sm:inline-flex"
                 >
                     <Bell size={20} />
                 </button>
